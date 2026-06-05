@@ -1,14 +1,16 @@
+import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import { NextResponse } from "next/server";
 
 export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> } // Tells Next.js we know params is a Promise
 ) {
   try {
-    const pollId = Number(params.id);
+    // Await the asynchronous promise to safely get the id
+    const resolvedParams = await context.params;
+    const pollId = Number(resolvedParams.id);
 
-    if (Number.isNaN(pollId) || !params.id) {
+    if (Number.isNaN(pollId) || !resolvedParams.id) {
       return NextResponse.json(
         { error: "Invalid poll ID provided." },
         { status: 400 }
@@ -25,7 +27,7 @@ export async function GET(
       return NextResponse.json({ error: optionsError.message }, { status: 500 });
     }
 
-    // Format the results using safe accessor syntax to avoid Turbopack build bugs
+    // Format the results safely
     const results = (optionsData || []).map((opt: any) => {
       const voteCount = opt.poll_votes?.[0]?.count ?? opt.poll_votes?.count ?? 0;
       return {
