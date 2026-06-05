@@ -1,88 +1,57 @@
-import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { NextResponse } from "next/server";
 
-// GET all polls
+/* =========================================================
+   GET ALL POLLS WITH THEIR OPTIONS & AGGREGATE VOTE COUNTS
+========================================================= */
 export async function GET() {
   try {
+    // Fetch polls, their embedded options, and the count of votes cast for each option
     const { data, error } = await supabase
       .from("polls")
       .select(`
         id,
         question,
-        created_at,
         poll_options (
           id,
-          option_text
+          option_text,
+          poll_votes(count)
         )
-      `)
-      .order("created_at", { ascending: false });
+      `);
 
     if (error) {
-      console.error("SUPABASE ERROR:", error);
-
-      return NextResponse.json(
-        {
-          error: error.message,
-          details: error,
-        },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json(data);
-  } catch (err) {
-    console.error("GET POLLS ERROR:", err);
+    // Format the counts safely for the front-end PollCard mapping matrix
+    const formattedPolls = (data ?? []).map((poll: any) => {
+      let pollTotalVotes = 0;
 
-    return NextResponse.json(
-      {
-        error: String(err),
-      },
-      { status: 500 }
-    );
-  }
-}
+      const formattedOptions = (poll.poll_options ?? []).map((opt: any) => {
+        // Safe bracket indexing layout structure avoiding Turbopack build bugs
+        const count = opt.poll_votes?.[0]?.count ?? opt.poll_votes?.count ?? 0;
+        pollTotalVotes += Number(count);
 
-// CREATE poll
-export async function POST(req: Request) {
-  try {
-    const { question, options } = await req.json();
+        return {
+          id: opt.id,
+          option_text: opt.option_text,
+          vote_count: Number(count)
+        };
+      });
 
-    const { data: poll, error } = await supabase
-      .from("polls")
-      .insert([{ question }])
-      .select()
-      .single();
-
-    if (error) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 500 }
-      );
-    }
-
-    const optionRows = options.map((option: string) => ({
-      poll_id: poll.id,
-      option_text: option,
-    }));
-
-    const { error: optionError } = await supabase
-      .from("poll_options")
-      .insert(optionRows);
-
-    if (optionError) {
-      return NextResponse.json(
-        { error: optionError.message },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      pollId: poll.id,
+      return {
+        id: poll.id,
+        question: poll.question,
+        total_votes: pollTotalVotes,
+        poll_options: formattedOptions
+      };
     });
-  } catch (err) {
+
+    return NextResponse.json(formattedPolls);
+  } catch (err: any) {
+    console.error("Main polls list aggregation error:", err);
     return NextResponse.json(
-      { error: String(err) },
+      { error: err.message || "Internal Server Error" },
       { status: 500 }
     );
   }
