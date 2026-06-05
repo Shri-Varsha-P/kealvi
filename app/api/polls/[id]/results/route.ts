@@ -1,43 +1,54 @@
+import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import { NextResponse } from "next/server";
 
 export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const pollId = Number(params.id);
+    const { id } = await context.params;
+    const pollId = Number(id);
 
-    if (Number.isNaN(pollId) || !params.id) {
-      return NextResponse.json({ error: "Invalid poll ID" }, { status: 400 });
+    if (!pollId) {
+      return NextResponse.json(
+        { error: "Invalid poll id" },
+        { status: 400 }
+      );
     }
 
-    const { data: optionsData, error: optionsError } = await supabase
+    // get poll options
+    const { data: options } = await supabase
       .from("poll_options")
-      .select("id, option_text, poll_votes(count)")
+      .select("id, option_text")
       .eq("poll_id", pollId);
 
-    if (optionsError) {
-      return NextResponse.json({ error: optionsError.message }, { status: 500 });
-    }
+    // get votes
+    const { data: votes } = await supabase
+      .from("poll_votes")
+      .select("option_id")
+      .eq("poll_id", pollId);
 
-    const results = (optionsData || []).map((opt: any) => {
-      const voteCount = opt.poll_votes?.[0]?.count ?? opt.poll_votes?.count ?? 0;
-      return {
-        option_id: opt.id,
-        option_text: opt.option_text,
-        vote_count: Number(voteCount),
-      };
+    const voteMap: Record<number, number> = {};
+
+    (votes || []).forEach((v) => {
+      voteMap[v.option_id] = (voteMap[v.option_id] || 0) + 1;
     });
 
-    const totalVotes = results.reduce((sum, current) => sum + current.vote_count, 0);
+    const result = (options || []).map((opt) => ({
+      option_id: opt.id,
+      option_text: opt.option_text,
+      vote_count: voteMap[opt.id] || 0,
+    }));
 
     return NextResponse.json({
       poll_id: pollId,
-      total_votes: totalVotes,
-      options: results
+      total_votes: votes?.length || 0,
+      options: result,
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json(
+      { error: err.message || "Server error" },
+      { status: 500 }
+    );
   }
 }
