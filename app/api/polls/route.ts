@@ -1,12 +1,8 @@
 import { supabase } from "@/lib/supabase";
 import { NextResponse } from "next/server";
 
-/* =========================================================
-   GET ALL POLLS WITH THEIR OPTIONS & AGGREGATE VOTE COUNTS
-========================================================= */
 export async function GET() {
   try {
-    // Fetch polls, their embedded options, and the count of votes cast for each option
     const { data, error } = await supabase
       .from("polls")
       .select(`
@@ -23,12 +19,10 @@ export async function GET() {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Format the counts safely for the front-end PollCard mapping matrix
     const formattedPolls = (data ?? []).map((poll: any) => {
       let pollTotalVotes = 0;
 
       const formattedOptions = (poll.poll_options ?? []).map((opt: any) => {
-        // Safe bracket indexing layout structure avoiding Turbopack build bugs
         const count = opt.poll_votes?.[0]?.count ?? opt.poll_votes?.count ?? 0;
         pollTotalVotes += Number(count);
 
@@ -49,10 +43,41 @@ export async function GET() {
 
     return NextResponse.json(formattedPolls);
   } catch (err: any) {
-    console.error("Main polls list aggregation error:", err);
-    return NextResponse.json(
-      { error: err.message || "Internal Server Error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function POST(req: Request) {
+  try {
+    const { question, options } = await req.json();
+
+    const { data: poll, error: pollError } = await supabase
+      .from("polls")
+      .insert({ question })
+      .select()
+      .single();
+
+    if (pollError) {
+      return NextResponse.json({ error: pollError.message }, { status: 500 });
+    }
+
+    const optionRows = options
+      .filter((o: string) => o.trim() !== "")
+      .map((text: string) => ({
+        poll_id: poll.id,
+        option_text: text,
+      }));
+
+    const { error: optError } = await supabase
+      .from("poll_options")
+      .insert(optionRows);
+
+    if (optError) {
+      return NextResponse.json({ error: optError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

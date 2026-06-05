@@ -1,23 +1,17 @@
-import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { NextResponse } from "next/server";
 
 export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> } // Tells Next.js we know params is a Promise
+  req: Request,
+  { params }: { params: { id: string } }
 ) {
   try {
-    // Await the asynchronous promise to safely get the id
-    const resolvedParams = await context.params;
-    const pollId = Number(resolvedParams.id);
+    const pollId = Number(params.id);
 
-    if (Number.isNaN(pollId) || !resolvedParams.id) {
-      return NextResponse.json(
-        { error: "Invalid poll ID provided." },
-        { status: 400 }
-      );
+    if (Number.isNaN(pollId) || !params.id) {
+      return NextResponse.json({ error: "Invalid poll ID" }, { status: 400 });
     }
 
-    // Fetch options for this poll along with the aggregate count of matching votes
     const { data: optionsData, error: optionsError } = await supabase
       .from("poll_options")
       .select("id, option_text, poll_votes(count)")
@@ -27,7 +21,6 @@ export async function GET(
       return NextResponse.json({ error: optionsError.message }, { status: 500 });
     }
 
-    // Format the results safely
     const results = (optionsData || []).map((opt: any) => {
       const voteCount = opt.poll_votes?.[0]?.count ?? opt.poll_votes?.count ?? 0;
       return {
@@ -45,10 +38,6 @@ export async function GET(
       options: results
     });
   } catch (err: any) {
-    console.error("Poll aggregation error:", err);
-    return NextResponse.json(
-      { error: err.message || "Internal Server Error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
