@@ -7,9 +7,17 @@ export async function POST(
 ) {
   try {
     const { id } = await context.params;
-    const { voterId } = await req.json();
 
     const questionId = Number(id);
+
+    if (!id || Number.isNaN(questionId)) {
+      return NextResponse.json(
+        { error: "Invalid question ID" },
+        { status: 400 }
+      );
+    }
+
+    const { voterId } = await req.json();
 
     if (!voterId) {
       return NextResponse.json(
@@ -18,8 +26,8 @@ export async function POST(
       );
     }
 
-    // 1. CHECK FOR AN EXISTING DOWNVOTE
-    const { data: existingDownvote, error: checkError } = await supabase
+    // 1. check existing downvote
+    const { data: existing, error: checkError } = await supabase
       .from("question_downvotes")
       .select("voter_id")
       .eq("question_id", questionId)
@@ -28,44 +36,34 @@ export async function POST(
 
     if (checkError) throw checkError;
 
-    if (existingDownvote) {
+    if (existing) {
       return NextResponse.json(
-        { error: "You have already downvoted this question" },
+        { error: "Already downvoted" },
         { status: 400 }
       );
     }
 
-    // 2. REMOVE UPVOTE IF EXISTS
+    // 2. remove upvote if exists
     await supabase
       .from("votes")
       .delete()
       .eq("question_id", questionId)
       .eq("voter_id", voterId);
 
-    // 3. INSERT DOWNVOTE
+    // 3. insert downvote
     const { error: insertError } = await supabase
       .from("question_downvotes")
       .insert({
-        question_id: questionId,
-        voter_id: voterId,
+        question_id: questionId, // int8 OK
+        voter_id: voterId,       // text OK
       });
 
-    if (insertError) {
-      if (insertError.code === "23505") {
-        return NextResponse.json(
-          { error: "You have already downvoted this question" },
-          { status: 400 }
-        );
-      }
-      throw insertError;
-    }
+    if (insertError) throw insertError;
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    console.error("Downvote API Error:", err);
-
     return NextResponse.json(
-      { error: err.message || "Internal Server Error" },
+      { error: err.message || "Server error" },
       { status: 500 }
     );
   }

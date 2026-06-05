@@ -3,17 +3,16 @@ import { NextResponse } from "next/server";
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // FIXED: Declared params as a Promise for Next.js 15/16 compatibility
 ) {
   try {
-    const questionId = Number(params.id);
+    // FIXED: Await the asynchronous params promise before reading the properties
+    const resolvedParams = await params;
+    const questionId = Number(resolvedParams.id);
 
-    // CRITICAL VALIDATION GUARDIAN: Stop execution completely if ID is not a valid number
-    if (Number.isNaN(questionId) || !params.id) {
-      return NextResponse.json(
-        { error: "PINNED A QUESTION TO TOP." },
-        { status: 400 }
-      );
+    // CRITICAL VALIDATION GUARDIAN: Check using the successfully resolved params properties
+    if (Number.isNaN(questionId) || !resolvedParams.id) {
+      return NextResponse.json({ success: false }, { status: 400 });
     }
 
     // 1. Fetch current pin state
@@ -38,9 +37,6 @@ export async function POST(
     return NextResponse.json({ success: true, is_pinned: nextPinState });
   } catch (err: any) {
     console.error("Pin toggle API error:", err);
-    return NextResponse.json(
-      { error: err.message || "Internal Server Error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false }, { status: 500 });
   }
 }
