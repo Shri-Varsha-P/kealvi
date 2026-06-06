@@ -23,6 +23,7 @@ export default function QuestionsList({
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [improving, setImproving] = useState(false);
 
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => setHydrated(true), []);
@@ -56,7 +57,38 @@ export default function QuestionsList({
       return 0; // Keep current layout placement if pin parameters align
     });
   };
+    async function improveQuestion() {
+  if (!draft.trim()) return;
 
+  try {
+    setImproving(true);
+    setError(null);
+
+    const res = await fetch("/api/improve", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        question: draft,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      setError(data.error || "Failed to improve question");
+      return;
+    }
+
+    setDraft(data.improved);
+  } catch (err) {
+    console.error(err);
+    setError("Failed to improve question");
+  } finally {
+    setImproving(false);
+  }
+}
     async function submit() {
     if (!draft.trim()) return;
     setError(null);
@@ -215,17 +247,28 @@ export default function QuestionsList({
       )}
 
       <div className="flex gap-2">
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="Ask a question…"
-          className="flex-1 rounded-md border px-3 py-2 text-black"
-        />
-        <button onClick={submit} className="rounded-md border px-4 py-2 hover:bg-gray-50">
-          Ask
-        </button>
-      </div>
+  <input
+    value={draft}
+    onChange={(e) => setDraft(e.target.value)}
+    placeholder="Ask a question…"
+    className="flex-1 rounded-md border px-3 py-2 text-black"
+  />
 
+ <button
+  onClick={improveQuestion}
+  disabled={improving}
+  className="rounded-md border px-4 py-2 bg-blue-50 hover:bg-blue-100 disabled:opacity-50"
+>
+  {improving ? "Improving..." : "Improve"}
+</button>
+
+  <button
+    onClick={submit}
+    className="rounded-md border px-4 py-2 hover:bg-gray-50"
+  >
+    Ask
+  </button>
+</div>
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
