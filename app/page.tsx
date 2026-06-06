@@ -13,7 +13,7 @@ export default async function Page() {
 
   const { data: dbQuestions, error } = await supabase
     .from("questions")
-    .select("id, body, author, created_at, is_pinned, votes(count), question_downvotes(count)")
+    .select("id, body, author, created_at, is_pinned, category, votes(count), question_downvotes(count)")
     .order("is_pinned", { ascending: false })
     .order("created_at", { ascending: false })
     .range(0, PAGE_SIZE - 1);
@@ -33,19 +33,21 @@ export default async function Page() {
       author: q.author || null,
       created_at: q.created_at,
       is_pinned: !!q.is_pinned,
+      category: q.category ?? null,
       votes: upvotes - downvotes,
     };
   });
 
   // 2. FIXED: Map the fallback array safely to ensure it provides the required boolean field
-  const safeRawQuestions = (rawQuestions ?? []).map((q: any) => ({
-    id: q.id,
-    body: q.body || "",
-    author: q.author || null,
-    created_at: q.created_at || new Date().toISOString(),
-    is_pinned: !!q.is_pinned, // Guarantees the missing key exists for the TypeScript compiler
-    votes: q.votes ?? 0,
-  }));
+ const safeRawQuestions = (rawQuestions ?? []).map((q: any) => ({
+  id: q.id,
+  body: q.body || "",
+  author: q.author || null,
+  created_at: q.created_at || new Date().toISOString(),
+  is_pinned: !!q.is_pinned,
+  category: q.category ?? null,
+  votes: q.votes ?? 0,
+}));
 
   const hasMore = (dbQuestions?.length ?? 0) === PAGE_SIZE;
 

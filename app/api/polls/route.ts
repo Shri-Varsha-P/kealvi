@@ -50,6 +50,22 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const { question, options } = await req.json();
+    if (!Array.isArray(options) || options.length < 2) {
+  return NextResponse.json(
+    { error: "At least 2 options are required" },
+    { status: 400 }
+  );
+}
+
+const option1 = options[0]?.trim().toLowerCase();
+const option2 = options[1]?.trim().toLowerCase();
+
+if (option1 === option2) {
+  return NextResponse.json(
+    { error: "Poll options cannot be identical" },
+    { status: 400 }
+  );
+}
 
     const { data: poll, error: pollError } = await supabase
       .from("polls")

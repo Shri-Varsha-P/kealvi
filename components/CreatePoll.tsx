@@ -13,6 +13,13 @@ export default function CreatePoll() {
       alert("Please fill all fields");
       return;
     }
+    const normalizedOption1 = option1.trim().toLowerCase();
+    const normalizedOption2 = option2.trim().toLowerCase();
+
+    if (normalizedOption1 === normalizedOption2) {
+      alert("Poll options cannot be identical");
+      return;
+    }
 
     try {
       setLoading(true);
@@ -29,7 +36,8 @@ export default function CreatePoll() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to create poll");
+        const data = await response.json();
+        throw new Error(data.error || "Failed to create poll");
       }
 
       alert("Poll created successfully");
@@ -41,7 +49,7 @@ export default function CreatePoll() {
       window.location.reload();
     } catch (error) {
       console.error(error);
-      alert("Failed to create poll");
+      alert(error instanceof Error ? error.message : "Failed to create poll");
     } finally {
       setLoading(false);
     }
