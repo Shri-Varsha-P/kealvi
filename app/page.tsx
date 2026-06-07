@@ -67,7 +67,7 @@ export default async function Page() {
   const hasMore = (dbQuestions?.length ?? 0) === PAGE_SIZE;
 
   return (
-    <main className="mx-auto max-w-2xl p-6 space-y-10 bg-white min-h-screen text-black">
+    <main className="mx-auto max-w-2xl p-6 space-y-10 min-h-screen text-black">
 
       {/* ================= SUMMARY ================= */}
       <section className="border rounded p-3">
