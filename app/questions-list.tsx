@@ -22,7 +22,9 @@ export default function QuestionsList({
   const [draft, setDraft] = useState("");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
+  const [name, setName] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
+  const [nameSearch, setNameSearch] = useState("");
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,25 +34,32 @@ export default function QuestionsList({
   useEffect(() => setHydrated(true), []);
 
   /* ================= SEARCH ================= */
-  useEffect(() => {
-    const id = setTimeout(async () => {
-      try {
-        const url = query
-          ? `/api/questions?q=${encodeURIComponent(query)}`
+useEffect(() => {
+  const id = setTimeout(async () => {
+    try {
+      const params = new URLSearchParams();
+
+      if (query) params.append("q", query);
+      if (nameSearch) params.append("name", nameSearch);
+      if (categoryFilter) params.append("category", categoryFilter);
+
+      const url =
+        params.toString().length > 0
+          ? `/api/questions?${params.toString()}`
           : `/api/questions`;
 
-        const res = await fetch(url);
-        const data = await res.json();
+      const res = await fetch(url);
+      const data = await res.json();
 
-        setQuestions(Array.isArray(data?.questions) ? data.questions : []);
-        setHasMore(!!data?.hasMore);
-      } catch {
-        setQuestions([]);
-      }
-    }, 300);
+      setQuestions(Array.isArray(data?.questions) ? data.questions : []);
+      setHasMore(!!data?.hasMore);
+    } catch {
+      setQuestions([]);
+    }
+  }, 300);
 
-    return () => clearTimeout(id);
-  }, [query]);
+  return () => clearTimeout(id);
+}, [query, nameSearch, categoryFilter]);
 
   /* ================= SORT PIN ================= */
   const sortQuestionsWithPins = (list: Question[]) => {
@@ -110,6 +119,7 @@ export default function QuestionsList({
         body: JSON.stringify({
           body: draft,
           category,
+          author: name.trim() || null,
         }),
       });
 
@@ -137,6 +147,7 @@ export default function QuestionsList({
 
         setDraft("");
         setCategory("");
+        setName("");
       }
 
     } catch {
@@ -214,6 +225,13 @@ export default function QuestionsList({
       </p>
 
       {/* INPUTS */}
+      <input
+      value={name}
+      onChange={(e) => setName(e.target.value)}
+      placeholder="Your name"
+      className="w-full border px-3 py-2 text-black"
+      />
+
       <div className="flex gap-2">
         <input
           value={draft}
@@ -242,7 +260,12 @@ export default function QuestionsList({
         placeholder="Search questions..."
         className="w-full border px-3 py-2 text-black"
       />
-
+      <input
+      value={nameSearch}
+      onChange={(e) => setNameSearch(e.target.value)}
+      placeholder="Search by name..."
+      className="w-full border px-3 py-2 text-black mt-2"
+      />
       <input
         value={categoryFilter}
         onChange={(e) => setCategoryFilter(e.target.value)}
@@ -260,28 +283,41 @@ export default function QuestionsList({
                   .includes(categoryFilter.toLowerCase())
               : true
           )
-          .map((q) => (
-            <li key={q.id} className="border p-3 flex justify-between">
-              <div>
-                <div>{q.body}</div>
-                {q.category && (
-                  <div className="text-xs text-gray-500">
-                    #{q.category}
-                  </div>
-                )}
-              </div>
+ .map((q) => (
+  <li key={q.id} className="border p-3 flex justify-between">
+    
+    {/* LEFT SIDE: CONTENT */}
+    <div>
+      <div>{q.body}</div>
 
-              <div className="flex gap-2">
-                <button onClick={() => upvote(q.id)}>▲</button>
-                <span>{q.votes}</span>
-                <button onClick={() => downvote(q.id)}>▼</button>
+      {/* ✅ AUTHOR FIX */}
+      <div className="text-xs text-blue-600 mt-1">
+        👤 Asked by: {q.author || "Anonymous"}
+      </div>
 
-                <button onClick={() => togglePin(q.id)}>
-                  {q.is_pinned ? "📌" : "Pin"}
-                </button>
-              </div>
-            </li>
-          ))}
+      {/* CATEGORY */}
+      {q.category && (
+        <div className="text-xs text-gray-500">
+          #{q.category}
+        </div>
+      )}
+    </div>
+
+    {/* RIGHT SIDE: ACTIONS */}
+    <div className="flex gap-2 items-center">
+      
+      <button onClick={() => upvote(q.id)}>▲</button>
+
+      <span>{q.votes}</span>
+
+      <button onClick={() => downvote(q.id)}>▼</button>
+
+      <button onClick={() => togglePin(q.id)}>
+        {q.is_pinned ? "📌" : "Pin"}
+      </button>
+    </div>
+  </li>
+))}
       </ul>
     </div>
   );

@@ -11,6 +11,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
 
     const q = searchParams.get("q")?.trim();
+    const name = searchParams.get("name")?.trim();
     const parsedOffset = Number(searchParams.get("offset") ?? 0);
     const offset = Number.isNaN(parsedOffset) ? 0 : parsedOffset;
 
@@ -25,6 +26,9 @@ export async function GET(req: Request) {
     // Search filter
     if (q) {
       query = query.ilike("body", `%${q}%`);
+    }
+    if (name) {
+      query = query.ilike("author", `%${name}%`);
     }
 
     query = query.range(offset, offset + PAGE_SIZE - 1);
@@ -69,6 +73,7 @@ export async function POST(req: Request) {
   try {
     const { body, author, category } = await req.json();
     const cleanedBody = body?.trim();
+    const cleanedAuthor = author?.trim() || null;
     const cleanedCategory = category?.trim().toLowerCase() || null;
 
     if (!cleanedBody) {
@@ -98,7 +103,7 @@ export async function POST(req: Request) {
       .from("questions")
       .insert({
         body: cleanedBody,
-        author: author ?? null,
+        author: cleanedAuthor,
         is_pinned: false,
         category: cleanedCategory,
       })

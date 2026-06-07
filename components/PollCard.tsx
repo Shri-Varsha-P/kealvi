@@ -42,8 +42,13 @@ export default function PollCard() {
   }
 
   async function vote(pollId: number, optionId: number) {
-    const voterId = localStorage.getItem("voter_id") ?? crypto.randomUUID();
-    localStorage.setItem("voter_id", voterId);
+    const voterId =
+  localStorage.getItem("voter_id") ??
+  (() => {
+    const id = crypto.randomUUID();
+    localStorage.setItem("voter_id", id);
+    return id;
+  })();
 
     try {
       const response = await fetch("/api/vote", {
