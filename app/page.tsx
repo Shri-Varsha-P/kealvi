@@ -1,5 +1,4 @@
 import QuestionsList from "./questions-list";
-import { getQuestionsPage } from "@/lib/questions";
 import CreatePoll from "@/components/CreatePoll";
 import PollCard from "@/components/PollCard";
 import Summary from "@/components/Summary";
@@ -8,11 +7,7 @@ import { supabase } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
-const PAGE_SIZE = 10;
-
 export default async function Page() {
-  const { questions: rawQuestions } = await getQuestionsPage(0, PAGE_SIZE);
-
   const { data: dbQuestions, error } = await supabase
     .from("questions")
     .select(`
@@ -26,8 +21,7 @@ export default async function Page() {
       question_downvotes(count)
     `)
     .order("is_pinned", { ascending: false })
-    .order("created_at", { ascending: false })
-    .range(0, PAGE_SIZE - 1);
+    .order("created_at", { ascending: false });
 
   if (error) {
     console.error("Database loading error on main page:", error);
@@ -44,34 +38,21 @@ export default async function Page() {
       id: q.id,
       body: q.body || "",
       author: q.author || null,
-      created_at: q.created_at,
+      created_at: q.created_at || new Date().toISOString(),
       is_pinned: !!q.is_pinned,
       category: q.category ?? null,
       votes: upvotes - downvotes,
     };
   });
 
-  /* =========================
-     SAFE FALLBACK DATA
-  ========================= */
-  const safeRawQuestions = (rawQuestions ?? []).map((q: any) => ({
-    id: q.id,
-    body: q.body || "",
-    author: q.author || null,
-    created_at: q.created_at || new Date().toISOString(),
-    is_pinned: !!q.is_pinned,
-    category: q.category ?? null,
-    votes: q.votes ?? 0,
-  }));
-
-  const hasMore = (dbQuestions?.length ?? 0) === PAGE_SIZE;
-
   return (
     <main className="mx-auto max-w-2xl p-6 space-y-10 min-h-screen text-black">
 
       {/* ================= SUMMARY ================= */}
       <section className="border rounded p-3">
-        <h2 className="text-xl font-semibold mb-2">Summary</h2>
+        <h2 className="text-xl font-semibold mb-2">
+          Summary
+        </h2>
         <Summary />
       </section>
 
@@ -82,12 +63,8 @@ export default async function Page() {
         </h1>
 
         <QuestionsList
-          initialQuestions={
-            formattedQuestions.length > 0
-              ? formattedQuestions
-              : safeRawQuestions
-          }
-          initialHasMore={hasMore}
+          initialQuestions={formattedQuestions}
+          initialHasMore={false}
         />
       </section>
 
@@ -113,9 +90,11 @@ export default async function Page() {
 
       <hr className="border-gray-200" />
 
-      {/* ================= LEADERBOARD (FIXED MISSING PART) ================= */}
+      {/* ================= LEADERBOARD ================= */}
       <section className="border rounded p-3">
-        <h2 className="text-xl font-semibold mb-2">Leaderboard</h2>
+        <h2 className="text-xl font-semibold mb-2">
+          Leaderboard
+        </h2>
         <Leaderboard />
       </section>
 
